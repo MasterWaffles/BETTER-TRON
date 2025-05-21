@@ -1,3 +1,10 @@
+"""
+Porter Smith
+Computer Science P:4
+tron lightcycle game
+"""
+
+
 import pygame
 import sys
 import json
@@ -25,7 +32,6 @@ class LightCycle:
         self.speed = speed
         self.alive = True
         self.is_ai = is_ai
-        self.max_trail_length = 1000
         self.player_directions = []
 
     def move(self):
@@ -35,12 +41,6 @@ class LightCycle:
         self.x += dx * self.speed
         self.y += dy * self.speed
         self.trail.append((self.x, self.y, time()))
-        if len(self.trail) > self.max_trail_length:
-            self.trail.pop(0)
-        if not self.is_ai:
-            self.player_directions.append(self.direction)
-            if len(self.player_directions) > 5:
-                self.player_directions.pop(0)
 
     def change_direction(self, new_direction):
         if not self.alive:
@@ -126,13 +126,9 @@ class LightCycle:
     def draw(self, screen):
         if not self.alive:
             return
-        current_time = time()
         surface = pygame.Surface((screen.get_width(), screen.get_height()), pygame.SRCALPHA)
         for i in range(len(self.trail) - 1):
-            age = current_time - self.trail[i][2]
-            alpha = max(0, 255 - int(age * 255 / 5))
-            color = self.color + (alpha,)
-            pygame.draw.line(surface, color,
+            pygame.draw.line(surface, self.color,
                              (self.trail[i][0], self.trail[i][1]),
                              (self.trail[i + 1][0], self.trail[i + 1][1]), 3)
         screen.blit(surface, (0, 0))
@@ -266,6 +262,16 @@ class Game:
         self.countdown = time()
         self.state = "game"
 
+    def reset_game(self):
+        self.cycle1 = None
+        self.cycle2 = None
+        self.game_over = False
+        self.winner = None
+        self.in_settings = False
+        self.paused = False
+        self.countdown = None
+        self.state = "home"
+
     def handle_keyboard_input(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -281,7 +287,7 @@ class Game:
                         self.cycle2.change_direction(self.cycle2.key_controls[event.key])
                     if event.key == pygame.K_SPACE and self.game_over:
                         self.save_settings()
-                        self.state = "home"
+                        self.reset_game()
                 if event.key == pygame.K_ESCAPE:
                     if self.state == "game" and not self.game_over and not self.in_settings:
                         self.paused = not self.paused
@@ -305,7 +311,7 @@ class Game:
                         self.screen_width // 2 - 150, self.screen_height // 2 + 50, 300, 100)
                     if restart_rect.collidepoint(mouse_pos):
                         self.save_settings()
-                        self.state = "home"
+                        self.reset_game()
 
                 elif self.paused:
                     if self.pause_resume_rect.collidepoint(mouse_pos):
@@ -314,7 +320,7 @@ class Game:
                         self.init_game(self.single_player)
                     elif self.pause_home_rect.collidepoint(mouse_pos):
                         self.save_settings()
-                        self.state = "home"
+                        self.reset_game()
 
                 elif self.in_settings:
                     for i, color in enumerate(self.color_options):
@@ -390,8 +396,6 @@ class Game:
             self.screen.blit(
                 title_text,
                 (self.screen_width // 2 - title_text.get_width() // 2, self.screen_height // 2 - 250))
-            pygame.draw.rect(self.screen, (100, 100, 100), self.single_player_rect)
-            pygame.draw.rect(self.screen, (100, 100, 100), self.multiplayer_rect)
             self.screen.blit(
                 single_text,
                 (self.screen_width // 2 - single_text.get_width() // 2, self.screen_height // 2 - 90))
@@ -408,7 +412,6 @@ class Game:
                 self.cycle1.draw(self.screen)
                 self.cycle2.draw(self.screen)
 
-                pygame.draw.rect(self.screen, (100, 100, 100), self.settings_button_rect)
                 settings_text = self.font.render("Menu", True, (255, 255, 255))
                 self.screen.blit(settings_text, (self.screen_width - 140, 20))
 
@@ -452,9 +455,6 @@ class Game:
                 self.screen.blit(
                     pause_text,
                     (self.screen_width // 2 - pause_text.get_width() // 2, self.screen_height // 2 - 200))
-                pygame.draw.rect(self.screen, (100, 100, 100), self.pause_resume_rect)
-                pygame.draw.rect(self.screen, (100, 100, 100), self.pause_restart_rect)
-                pygame.draw.rect(self.screen, (100, 100, 100), self.pause_home_rect)
                 self.screen.blit(
                     resume_text,
                     (self.screen_width // 2 - resume_text.get_width() // 2, self.screen_height // 2 - 90))
@@ -497,10 +497,6 @@ class Game:
 
                 for i, speed in enumerate(self.speed_options):
                     speed_text = self.font.render(str(speed), True, (255, 255, 255))
-                    speed_rect = pygame.Rect(
-                        self.screen_width // 2 - 100,
-                        self.screen_height // 2 - 50 + i * 60, 100, 50)
-                    pygame.draw.rect(self.screen, (100, 100, 100), speed_rect)
                     self.screen.blit(
                         speed_text,
                         (self.screen_width // 2 - 100 + 50 - speed_text.get_width() // 2,
@@ -509,16 +505,11 @@ class Game:
                 if self.single_player:
                     for i, difficulty in enumerate(self.difficulty_options):
                         diff_text = self.font.render(difficulty.capitalize(), True, (255, 255, 255))
-                        diff_rect = pygame.Rect(
-                            self.screen_width // 2 + 50,
-                            self.screen_height // 2 - 50 + i * 60, 100, 50)
-                        pygame.draw.rect(self.screen, (100, 100, 100), diff_rect)
                         self.screen.blit(
                             diff_text,
                             (self.screen_width // 2 + 50 + 50 - diff_text.get_width() // 2,
                              self.screen_height // 2 - 50 + i * 60 + 10))
 
-                pygame.draw.rect(self.screen, (100, 100, 100), self.exit_settings_rect)
                 exit_text = self.font.render("Exit Settings", True, (255, 255, 255))
                 self.screen.blit(
                     exit_text,
